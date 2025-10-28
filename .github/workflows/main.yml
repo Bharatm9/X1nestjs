@@ -15,27 +15,37 @@ jobs:
         node-version: [18.x]
 
     steps:
+    # Step 1: Checkout repo
     - uses: actions/checkout@v4
 
+    # Step 2: Setup Node.js
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
 
+    # Step 3: Install dependencies
     - name: Install dependencies
       run: npm ci
 
+    # Step 4: Generate Prisma Client (if applicable)
     - name: Generate Prisma Client
       run: npx prisma generate
 
+    # Step 5: Run tests
     - name: Run tests
       run: npm test
 
-    - name: Build
-      run: npm run build
+    # Step 6: Build project (Linux-safe command)
+    - name: Build project
+      run: |
+        npm run build
+        # Copy views safely for Linux/Mac
+        mkdir -p dist/src/views
+        cp -r src/views/* dist/src/views/ || echo "No views folder found"
 
-    # Add caching for better performance
+    # Step 7: Cache node modules for faster builds
     - name: Cache node modules
       uses: actions/cache@v4
       with:
@@ -44,12 +54,12 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-node-
 
-    # Optional: Add code quality checks
+    # Step 8: Lint code
     - name: Run ESLint
       run: npm run lint
       if: success()
 
-    # Optional: Add test coverage reporting
+    # Step 9: Upload coverage reports
     - name: Upload coverage reports
       uses: actions/upload-artifact@v4
       with:
@@ -57,9 +67,9 @@ jobs:
         path: coverage/
       if: success()
 
-    # Example deployment step (customize based on your deployment target)
+    # Step 10: (Optional) Deploy step
     # - name: Deploy
-    #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    #   if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     #   run: |
     #     echo "Add your deployment commands here"
     #   env:
