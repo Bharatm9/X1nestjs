@@ -1,0 +1,121 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum VehListingType {
+  New
+  Used
+}
+
+enum SpinType {
+  CAPTURED
+  STITCHED
+}
+
+model Rooftop {
+  id        Int      @id @default(autoincrement()) @map("id")
+  name      String?  @map("name") @db.VarChar(255)
+  street    String?  @map("street") @db.VarChar(255)
+  city      String?  @map("city") @db.VarChar(255)
+  state     String?  @map("state") @db.VarChar(255)
+  zip       String?  @map("zip") @db.VarChar(50)
+  phone     String?  @map("phone") @db.VarChar(50)
+  email     String?  @map("email") @db.VarChar(255)
+  site      String?  @map("site") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_date")
+  updatedAt DateTime @updatedAt @map("updated_date")
+
+  vehicles Vehicle[]
+
+  @@map("rooftop")
+}
+
+model Vehicle {
+  id             Int             @id @default(autoincrement()) @map("id")
+  rooftopId      Int?            @map("rooftop_id")
+  guid           String?         @map("guid") @db.VarChar(50)
+  stock          String?         @map("stock") @db.VarChar(20)
+  vin            String?         @map("vin") @db.VarChar(30)
+  active         Boolean?        @default(false) @map("active")
+  vehListingType VehListingType? @map("veh_listing_type")
+  certified      Boolean?        @default(false) @map("certified")
+  year           Int?            @default(0) @map("year")
+  make           String?         @map("make") @db.VarChar(50)
+  model          String?         @map("model") @db.VarChar(50)
+  trim           String?         @map("trim") @db.VarChar(50)
+  bodyType       String?         @map("body_type") @db.VarChar(50)
+  extColor       String?         @map("ext_color") @db.VarChar(50)
+  intColor       String?         @map("int_color") @db.VarChar(50)
+  miles          String?         @map("miles") @db.VarChar(20)
+  status         String?         @map("status") @db.VarChar(50)
+  engine         String?         @map("engine") @db.VarChar(100)
+  createdAt      DateTime        @default(now()) @map("created_date")
+  updatedAt      DateTime        @updatedAt @map("updated_date")
+  deletedAt      DateTime?       @map("deleted_date")
+
+  rooftop Rooftop? @relation(fields: [rooftopId], references: [id])
+
+  videos Video[]
+  spins  Spin360[]
+  images Image[]
+
+  @@map("vehicles")
+}
+
+model Video {
+  id           Int      @id @default(autoincrement()) @map("id")
+  vehicleId    Int      @map("vehicle_id")
+  clipDuration Int?     @map("clip_duration")
+  clipUrl      String?  @map("clip_url") @db.VarChar(1024)
+  thumbUrl     String?  @map("thumb_url") @db.VarChar(1024)
+  title        String?  @map("title") @db.VarChar(255)
+  shortDesc    String?  @map("short_desc") @db.Text
+  desc         String?  @map("desc") @db.Text
+  createdAt    DateTime @default(now()) @map("created_date")
+  updatedAt    DateTime @updatedAt @map("updated_date")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+
+  @@map("videos")
+}
+
+model Spin360 {
+  id           Int      @id @default(autoincrement()) @map("id")
+  vehicleId    Int      @map("vehicle_id")
+  playerUrl    String?  @map("player_url") @db.VarChar(1024)
+  type         SpinType @map("type")
+  exteriorView Boolean? @default(false) @map("exterior_view")
+  interiorView Boolean? @default(false) @map("interior_view")
+  createdAt    DateTime @default(now()) @map("created_date")
+  updatedAt    DateTime @updatedAt @map("updated_date")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+
+  @@map("360spin")
+}
+
+model Image {
+  id           Int      @id @default(autoincrement()) @map("id")
+  vehicleId    Int      @map("vehicle_id")
+  imageGroupId Int?     @map("image_group_id")
+  imageUrl     String   @map("image_url") @db.VarChar(1024)
+  imageWidth   Int?     @map("image_width")
+  imageHeight  Int?     @map("image_height")
+  createdAt    DateTime @default(now()) @map("created_date")
+  updatedAt    DateTime @updatedAt @map("updated_date")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+
+  @@map("images")
+}

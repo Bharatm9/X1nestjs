@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package vehicle;
+
+message Vehicle {
+  int32 id = 1;
+  int32 rooftop_id = 2;
+  string make = 3;
+  string model = 4;
+  int32 year = 5;
+  string veh_listing_type = 6;
+  string trim = 7;
+  string body_type = 8;
+  string ext_color = 9;
+}
+
+message VehicleList {
+  repeated Vehicle vehicles = 1;
+}
