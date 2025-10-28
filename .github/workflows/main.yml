@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x]
+        node-version: [20.x]  # ✅ Updated from 18.x → 20.x
 
     steps:
     # Step 1: Checkout repo
@@ -29,7 +29,7 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    # Step 4: Generate Prisma Client (if applicable)
+    # Step 4: Generate Prisma Client
     - name: Generate Prisma Client
       run: npx prisma generate
 
@@ -37,15 +37,15 @@ jobs:
     - name: Run tests
       run: npm test
 
-    # Step 6: Build project (Linux-safe command)
+    # Step 6: Build project safely for Linux
     - name: Build project
       run: |
         npm run build
-        # Copy views safely for Linux/Mac
+        # If build script still uses xcopy, manually copy views here:
         mkdir -p dist/src/views
         cp -r src/views/* dist/src/views/ || echo "No views folder found"
 
-    # Step 7: Cache node modules for faster builds
+    # Step 7: Cache node modules
     - name: Cache node modules
       uses: actions/cache@v4
       with:
@@ -54,7 +54,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-node-
 
-    # Step 8: Lint code
+    # Step 8: Run ESLint
     - name: Run ESLint
       run: npm run lint
       if: success()
