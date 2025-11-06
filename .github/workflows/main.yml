@@ -53,7 +53,7 @@ jobs:
     - name: Build Project
       run: |
         echo "Building NestJS project..."
-        npx tsc -p tsconfig.build.json --skipLibCheck true || echo "Ignoring TS build warnings"
+        npm run build || echo "Ignoring TS build warnings"
 
     # Step 9: Deploy to Production
     - name: Deploy to Production
@@ -70,7 +70,7 @@ jobs:
           set -e
           echo '✅ Connected to production server'
 
-          # Install required tools if missing
+          # 1️⃣ Install Node.js, PM2, Prisma, and Git if missing
           if ! command -v node &> /dev/null; then
             apt update -y
             apt install -y curl git
@@ -80,7 +80,7 @@ jobs:
 
           npm install -g pm2 prisma
 
-          # Ensure project folder exists
+          # 2️⃣ Ensure repo exists
           if [ ! -d /root/x1-nestjs ]; then
             echo '📦 Cloning repository...'
             cd /root
@@ -100,17 +100,19 @@ jobs:
             exit 1
           fi
 
+          # 3️⃣ Export environment variable before Prisma commands
+          export DATABASE_URL='${DATABASE_URL}'
+
           echo '⚙️ Running Prisma generate...'
           npm run prisma:generate
 
           echo '🏗️ Building application...'
-          npm run build -- --skipLibCheck || true
+          npm run build || true
 
           echo '🚀 Deploying migrations (if any)...'
           npx prisma migrate deploy || true
 
           echo '🌐 Starting PM2 process...'
-          export DATABASE_URL='${DATABASE_URL}'
           PORT=3000 pm2 start 'npm run start:prod' --name x1-nestjs || pm2 restart x1-nestjs
 
           echo '✅ Deployment completed successfully!'
