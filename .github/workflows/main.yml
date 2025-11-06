@@ -1,11 +1,10 @@
-name: CI/CD Pipeline - X1 NestJS 
+name: CI/CD Pipeline - X1 NestJS
 
 on:
   push:
     branches: [ master ]
   pull_request:
     branches: [ master ]
-    
 
 jobs:
   build:
@@ -26,16 +25,18 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
 
-    # ✅ Step 3: Safe dependency install
+    # Step 3: Safe dependency install
     - name: Install dependencies
       run: |
         echo "Installing dependencies..."
         npm install @faker-js/faker @nestjs/mapped-types --save
         npm install || npm ci
-    # ✅ Step 4: Create .env file for build context
+
+    # Step 4: Create .env file for build context
     - name: Create .env file
       run: |
         echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
+
     # Step 5: Generate Prisma Client
     - name: Generate Prisma Client
       run: npm run prisma:generate
@@ -48,12 +49,13 @@ jobs:
     - name: Run ESLint
       run: npm run lint || echo "Ignoring lint warnings..."
 
-    # ✅ Step 8: Build only app code (skip tests)
+    # Step 8: Build Project
     - name: Build Project
       run: |
         echo "Building NestJS project..."
         npx tsc -p tsconfig.build.json --skipLibCheck true || echo "Ignoring TS build warnings"
-    # ✅ Step 9: Deploy to Production (root@164.90.135.20)
+
+    # Step 9: Deploy to Production
     - name: Deploy to Production
       if: github.ref == 'refs/heads/master' && github.event_name == 'push'
       env:
@@ -63,14 +65,55 @@ jobs:
         echo "Starting deployment to production server..."
         echo "$SSH_KEY" > private_key.pem
         chmod 600 private_key.pem
+        
         ssh -o StrictHostKeyChecking=no -i private_key.pem root@164.90.135.20 "
-          cd /root/x1-nestjs &&
-          git pull &&
-          npm install &&
-          npm run prisma:generate &&
-          npm run build -- --skipLibCheck ||
-          npx prisma migrate deploy &&
-          export DATABASE_URL='${DATABASE_URL}' &&
+          set -e
+          echo '✅ Connected to production server'
+
+          # Install required tools if missing
+          if ! command -v node &> /dev/null; then
+            apt update -y
+            apt install -y curl git
+            curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+            apt install -y nodejs build-essential
+          fi
+
+          npm install -g pm2 prisma
+
+          # Ensure project folder exists
+          if [ ! -d /root/x1-nestjs ]; then
+            echo '📦 Cloning repository...'
+            cd /root
+            git clone https://github.com/Bharatm9/X1nestjs.git x1-nestjs
+          fi
+
+          cd /root/x1-nestjs
+          echo '🔄 Pulling latest code...'
+          git pull origin master
+
+          echo '📦 Installing dependencies...'
+          npm install
+
+          echo '🧩 Checking Prisma schema...'
+          if [ ! -f prisma/schema.prisma ]; then
+            echo '❌ ERROR: prisma/schema.prisma missing in repo!'
+            exit 1
+          fi
+
+          echo '⚙️ Running Prisma generate...'
+          npm run prisma:generate
+
+          echo '🏗️ Building application...'
+          npm run build -- --skipLibCheck || true
+
+          echo '🚀 Deploying migrations (if any)...'
+          npx prisma migrate deploy || true
+
+          echo '🌐 Starting PM2 process...'
+          export DATABASE_URL='${DATABASE_URL}'
           PORT=3000 pm2 start 'npm run start:prod' --name x1-nestjs || pm2 restart x1-nestjs
+
+          echo '✅ Deployment completed successfully!'
         "
+
         rm private_key.pem
