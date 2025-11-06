@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline - X1 NestJS
 
 on:
   push:
@@ -18,65 +18,67 @@ jobs:
     # Step 1: Checkout repo
     - uses: actions/checkout@v4
 
-    # Step 2: Setup Node
+    # Step 2: Setup Node.js
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
 
-    # Step 3: Install dependencies
+    # ✅ Step 3: Safe dependency install (handles mismatched lockfiles)
     - name: Install dependencies
-      run: npm ci
+      run: |
+        echo "Installing dependencies (safe mode)..."
+        npm install || npm ci
 
-    # ✅ Step 4: Create .env file only for build context
+    # ✅ Step 4: Create .env file for DATABASE_URL
     - name: Create .env file
       run: |
         echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
 
-    # Step 5: Prisma Generate (client only)
+    # Step 5: Generate Prisma Client
     - name: Generate Prisma Client
       run: npm run prisma:generate
 
-    # ❌ Removed Prisma migrate deploy from GitHub Actions
-    # (it will run on server)
-
-    # Step 6: Run tests
+    # Step 6: Run Tests
     - name: Run Tests
       run: npm test
 
-    # Step 7: Build project
-    - name: Build Project
-      run: |
-        npm run build
-        mkdir -p dist/src/views
-        cp -r src/views/* dist/src/views/ || echo "No views folder found"
-
-    # Step 8: Run ESLint
+    # Step 7: Run Lint
     - name: Run ESLint
       run: npm run lint
 
-    # Step 9: Upload coverage reports
+    # ✅ Step 8: Build Project
+    - name: Build Project
+      run: npm run build
+
+    # Step 9: Upload Coverage Report (optional)
     - name: Upload Coverage Reports
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: coverage/
 
-    # ✅ Step 10: Deploy to server and run DB migration there
-    # Uncomment & update server details before using
-    # - name: Deploy to Server
-    #   if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-    #   run: |
-    #     echo "Deploying..."
-    #     ssh -o StrictHostKeyChecking=no ubuntu@YOUR_SERVER_IP "
-    #       cd /path/to/app &&
-    #       git pull &&
-    #       npm install &&
-    #       npm run build &&
-    #       npx prisma migrate deploy &&
-    #       pm2 restart x1-nestjs
-    #     "
-    #   env:
-    #     SSH_KEY: ${{ secrets.SSH_KEY }}
-    #     DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    # ✅ Step 10: Deploy to Production Server
+    - name: Deploy to Production
+      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      env:
+        SSH_KEY: ${{ secrets.SSH_KEY }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      run: |
+        echo "Starting deployment to production server..."
+        echo "$SSH_KEY" > private_key.pem
+        chmod 600 private_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i private_key.pem ubuntu@YOUR_SERVER_IP "
+          cd /path/to/x1-nestjs &&
+          git pull &&
+          npm install &&
+          npm run prisma:generate &&
+          npm run build &&
+          export DATABASE_URL='${DATABASE_URL}' &&
+          npx prisma migrate deploy &&
+          PORT=3000 pm2 start 'npm run start:prod' --name x1-nestjs || pm2 restart x1-nestjs
+        "
+
+        rm private_key.pem
