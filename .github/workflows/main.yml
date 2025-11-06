@@ -32,7 +32,7 @@ jobs:
         npm install @faker-js/faker @nestjs/mapped-types --save
         npm install || npm ci
 
-    # Step 4: Create .env file
+    # ✅ Step 4: Create .env file for build context
     - name: Create .env file
       run: |
         echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
@@ -45,33 +45,35 @@ jobs:
     - name: Skip Tests
       run: echo "Skipping tests for CI/CD..."
 
-    # Step 7: Run Lint (non-blocking)
+    # Step 7: Run ESLint (non-blocking)
     - name: Run ESLint
       run: npm run lint || echo "Ignoring lint warnings..."
 
-    # ✅ Step 8: Build Project (ignore minor TS errors)
+    # ✅ Step 8: Build only app code (skip tests)
     - name: Build Project
       run: |
         echo "Building NestJS project..."
-        npx tsc --skipLibCheck true --noEmit false || echo "Ignoring TS build warnings"
+        npx tsc -p tsconfig.build.json --skipLibCheck true || echo "Ignoring TS build warnings"
 
-    # Step 9: Deploy to Production
+    # ✅ Step 9: Deploy to Production (root@164.90.135.20)
     - name: Deploy to Production
       if: github.ref == 'refs/heads/master' && github.event_name == 'push'
       env:
         SSH_KEY: ${{ secrets.SSH_KEY }}
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
+        echo "Starting deployment to production server..."
         echo "$SSH_KEY" > private_key.pem
         chmod 600 private_key.pem
 
-        ssh -o StrictHostKeyChecking=no -i private_key.pem root@YOUR_SERVER_IP "
-          cd /path/to/x1-nestjs &&
+        ssh -o StrictHostKeyChecking=no -i private_key.pem root@164.90.135.20 "
+          cd /root/x1-nestjs &&
           git pull &&
           npm install &&
           npm run prisma:generate &&
           npm run build -- --skipLibCheck ||
           npx prisma migrate deploy &&
+          export DATABASE_URL='${DATABASE_URL}' &&
           PORT=3000 pm2 start 'npm run start:prod' --name x1-nestjs || pm2 restart x1-nestjs
         "
 
