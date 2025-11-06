@@ -1,4 +1,4 @@
-name: CI/CD Pipeline - X1 NestJS
+name: CI/CD Pipeline - X1 NestJS 
 
 on:
   push:
